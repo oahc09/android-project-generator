@@ -9,6 +9,9 @@ import subprocess
 import sys
 import re
 import json
+import importlib.util
+import os
+import tempfile
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -16,8 +19,56 @@ import webbrowser
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CACHE_ROOT = PROJECT_ROOT / "cache"
+PYCACHE_ROOT = CACHE_ROOT / "pycache"
+TMP_ROOT = CACHE_ROOT / "tmp" / "python"
 SUMMARY_REPORT_PATH = PROJECT_ROOT / "reports" / "test-results.json"
 REPORT_HTML_PATH = PROJECT_ROOT / "reports" / "test-report.html"
+
+
+def _configure_runtime_cache() -> None:
+    """显式固定 pycache/tmp 到项目 cache 目录，避免生成 tests/__pycache__。"""
+    CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    PYCACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    TMP_ROOT.mkdir(parents=True, exist_ok=True)
+    sys.pycache_prefix = str(PYCACHE_ROOT)
+    os.environ["PYTHONPYCACHEPREFIX"] = str(PYCACHE_ROOT)
+    tempfile.tempdir = str(TMP_ROOT)
+
+
+_configure_runtime_cache()
+
+
+def _is_module_installed(module_name: str) -> bool:
+    return importlib.util.find_spec(module_name) is not None
+
+
+def _strip_cov_args(args: List[str]) -> List[str]:
+    """移除 pytest-cov 相关参数，避免插件缺失时参数报错。"""
+    cov_args_with_value = {
+        "--cov",
+        "--cov-report",
+        "--cov-config",
+        "--cov-fail-under",
+        "--cov-context",
+    }
+    sanitized = []
+    skip_next = False
+
+    for arg in args:
+        if skip_next:
+            skip_next = False
+            continue
+
+        if arg in cov_args_with_value:
+            skip_next = True
+            continue
+
+        if arg.startswith("--cov"):
+            continue
+
+        sanitized.append(arg)
+
+    return sanitized
 
 
 def run_tests_and_generate_report(test_path: str = "tests/unit", extra_args: List[str] = None):
@@ -30,13 +81,29 @@ def run_tests_and_generate_report(test_path: str = "tests/unit", extra_args: Lis
     print("=" * 60)
     print("[TEST] Running tests and generating report...")
     print("=" * 60)
+
+    if not _is_module_installed("pytest"):
+        print("[ERROR] pytest module is not installed.")
+        print("[HINT] Install it with: python -m pip install pytest")
+        return 2
+
+    pytest_cov_installed = _is_module_installed("pytest_cov")
     
     # 构建 pytest 命令
     cmd = [sys.executable, "-m", "pytest", test_path, "-v", "--tb=short"]
     if extra_args:
         cmd.extend(extra_args)
     else:
-        cmd.append("--no-cov")
+        if pytest_cov_installed:
+            cmd.append("--no-cov")
+
+    if pytest_cov_installed:
+        if "--no-cov" not in cmd:
+            cmd.append("--no-cov")
+    else:
+        cmd = _strip_cov_args(cmd)
+        # 覆盖 pytest.ini 里的 addopts，移除 --cov 相关选项
+        cmd.extend(["-o", "addopts=-v --tb=short --strict-markers -ra -p tests.conftest"])
     
     print(f"\n[CMD] Running: {' '.join(cmd)}")
     

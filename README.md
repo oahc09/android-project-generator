@@ -1,6 +1,15 @@
 # android-project-generator
 When generating an Android project from scratch, it can be compiled successfully in one go.
 
+## Python Environment
+
+- Python 3.10+ recommended
+- Install test dependencies before running scripts that call pytest:
+
+```bash
+python -m pip install -r tests/requirements.txt
+```
+
 ## Directory Layout
 
 ```text

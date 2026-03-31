@@ -6,14 +6,15 @@
 import sys
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 scripts_path = Path(__file__).parent.parent.parent / "scripts"
 tests_path = Path(__file__).parent.parent
 sys.path.insert(0, str(scripts_path))
 sys.path.insert(0, str(tests_path))
 
-from generate_report import parse_test_output, save_summary_report, REPORT_HTML_PATH, CACHE_ROOT
-from run_tests import format_command_message, format_display_path
+from generate_report import parse_test_output, save_summary_report, REPORT_HTML_PATH, CACHE_ROOT, run_tests_and_generate_report
+from run_tests import format_command_message, format_display_path, ensure_pytest_available
 from report_generator import parse_summary_report
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -121,6 +122,25 @@ tests\\integration\\test_project_structure.py::test_structure SKIPPED [ 30%]
     def test_cache_root_is_unified_under_cache_directory(self):
         assert CACHE_ROOT.name == "cache"
 
+    @patch("generate_report.subprocess.run")
+    @patch("generate_report.importlib.util.find_spec")
+    def test_run_tests_returns_2_when_pytest_is_missing(self, mock_find_spec, mock_subprocess_run, capsys):
+        def fake_find_spec(name):
+            if name == "pytest":
+                return None
+            if name == "pytest_cov":
+                return None
+            return object()
+
+        mock_find_spec.side_effect = fake_find_spec
+
+        exit_code = run_tests_and_generate_report("tests/unit")
+        captured = capsys.readouterr()
+
+        assert exit_code == 2
+        assert "pytest module is not installed" in captured.out
+        mock_subprocess_run.assert_not_called()
+
 
 class TestRunTestsFormatting:
     """run_tests.py 行为测试"""
@@ -135,11 +155,24 @@ class TestRunTestsFormatting:
         relative = format_display_path(Path("D:/AI/Github/android-project-generator/reports/test-report.html"))
         assert relative == "reports/test-report.html"
 
+    @patch("run_tests._is_module_installed", return_value=False)
+    def test_ensure_pytest_available_returns_2_when_missing(self, _mock_installed, capsys):
+        exit_code = ensure_pytest_available()
+        captured = capsys.readouterr()
+
+        assert exit_code == 2
+        assert "pytest module is not installed" in captured.out
+        assert "pip install -r tests/requirements.txt" in captured.out
+
     def test_running_report_only_does_not_create_scripts_pycache(self):
         scripts_pycache = PROJECT_ROOT / "scripts" / "__pycache__"
+        tests_pycache = PROJECT_ROOT / "tests" / "__pycache__"
         if scripts_pycache.exists():
             import shutil
             shutil.rmtree(scripts_pycache, ignore_errors=True)
+        if tests_pycache.exists():
+            import shutil
+            shutil.rmtree(tests_pycache, ignore_errors=True)
 
         summary_path = PROJECT_ROOT / "reports" / "test-results.json"
         save_summary_report(
@@ -163,3 +196,4 @@ class TestRunTestsFormatting:
 
         assert result.returncode == 0, result.stderr
         assert not scripts_pycache.exists()
+        assert not tests_pycache.exists()

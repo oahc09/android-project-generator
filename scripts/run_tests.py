@@ -7,11 +7,29 @@
 
 import subprocess
 import sys
+import os
+import tempfile
 import webbrowser
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CACHE_ROOT = PROJECT_ROOT / "cache"
+PYCACHE_ROOT = CACHE_ROOT / "pycache"
+TMP_ROOT = CACHE_ROOT / "tmp" / "python"
 SUMMARY_REPORT_PATH = PROJECT_ROOT / "reports" / "test-results.json"
 REPORT_HTML_PATH = PROJECT_ROOT / "reports" / "test-report.html"
+
+
+def _configure_runtime_cache() -> None:
+    """显式固定 pycache/tmp 到项目 cache 目录，避免生成 tests/__pycache__。"""
+    CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    PYCACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    TMP_ROOT.mkdir(parents=True, exist_ok=True)
+    sys.pycache_prefix = str(PYCACHE_ROOT)
+    os.environ["PYTHONPYCACHEPREFIX"] = str(PYCACHE_ROOT)
+    tempfile.tempdir = str(TMP_ROOT)
+
+
+_configure_runtime_cache()
 
 
 def format_command_message(cmd) -> str:
@@ -19,17 +37,44 @@ def format_command_message(cmd) -> str:
     return f"[CMD] Running: {' '.join(cmd)}"
 
 
+def _is_module_installed(module_name: str) -> bool:
+    import importlib.util
+    return importlib.util.find_spec(module_name) is not None
+
+
+def ensure_pytest_available() -> int:
+    """检查 pytest 是否可用；不可用时返回 2。"""
+    if _is_module_installed("pytest"):
+        return 0
+
+    print("[ERROR] pytest module is not installed.")
+    print("[HINT] Install test dependencies with:")
+    print("       python -m pip install -r tests/requirements.txt")
+    return 2
+
+
 def format_display_path(path: Path) -> str:
     """尽量输出相对于项目根目录的路径，避免控制台显示绝对路径。"""
+    normalized_path = str(path).replace("\\", "/")
+    lower_normalized = normalized_path.lower()
+    marker = "/reports/"
+
     try:
         return str(Path(path).resolve().relative_to(PROJECT_ROOT)).replace("\\", "/")
     except Exception:
-        return str(path).replace("\\", "/")
+        if marker in lower_normalized:
+            start = lower_normalized.index(marker) + len(marker)
+            return f"reports/{normalized_path[start:].lstrip('/')}"
+        return normalized_path
 
 
 def run_tests():
     """运行测试"""
     from generate_report import run_tests_and_generate_report
+
+    missing_exit = ensure_pytest_available()
+    if missing_exit != 0:
+        return missing_exit
 
     print("=" * 60)
     print("[TEST] Android Project Generator - Test Runner")
@@ -80,6 +125,10 @@ def run_tests():
 
 def run_unit_tests():
     """只运行单元测试"""
+    missing_exit = ensure_pytest_available()
+    if missing_exit != 0:
+        return missing_exit
+
     print("=" * 60)
     print("[TEST] Run unit tests")
     print("=" * 60)
@@ -99,6 +148,10 @@ def run_unit_tests():
 
 def run_integration_tests():
     """只运行集成测试"""
+    missing_exit = ensure_pytest_available()
+    if missing_exit != 0:
+        return missing_exit
+
     print("=" * 60)
     print("[TEST] Run integration tests")
     print("=" * 60)
