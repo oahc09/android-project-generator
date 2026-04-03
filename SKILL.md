@@ -1,8 +1,8 @@
 ---
 name: android-project-generator
-description: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, or diagnosing why a freshly generated Android project does not build. This skill must be used for Android project scaffolding even if the user only asks to "make an Android app" or "set up Gradle".
-description_en: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, or diagnosing why a freshly generated Android project does not build.
-description_zh: 生成真正以首次构建通过为目标的 Android 工程，而不只是产出看起来完整的项目结构。凡是涉及创建 Android 应用、生成 Gradle 配置、选择 AGP/Gradle/JDK/Kotlin 版本、为 `assembleDebug` 做准备，或排查新生成 Android 工程为何无法构建时，都应使用此技能。
+description: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, adding Native modules (JNI/NDK/CMake), or diagnosing why a freshly generated Android project does not build. This skill must be used for Android project scaffolding even if the user only asks to "make an Android app", "set up Gradle", or "add C/C++ native code".
+description_en: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, adding Native modules (JNI/NDK/CMake), or diagnosing why a freshly generated Android project does not build.
+description_zh: 生成真正以首次构建通过为目标的 Android 工程，而不只是产出看起来完整的项目结构。凡是涉及创建 Android 应用、生成 Gradle 配置、选择 AGP/Gradle/JDK/Kotlin 版本、为 `assembleDebug` 做准备、接入 Native 模块（JNI/NDK/CMake），或排查新生成 Android 工程为何无法构建时，都应使用此技能。即使用户只说“做一个 Android App”“配置 Gradle”或“添加 C/C++ 原生代码”，也应触发此技能。
 license: MIT
 metadata:
   author: oahcfly
@@ -21,6 +21,7 @@ Ensure AI-generated Android projects compile successfully on the first attempt b
 3. **Environment detection** — Adapt to local JDK/SDK versions
 4. **Post-generation validation** — Verify compilation succeeds
 5. **APK build orchestration** — Distinguish between scaffolding-only, build-failed, and compiled APK states
+6. **Native integration guidance** — Detect native intent and scaffold JNI/NDK/CMake-compatible project configuration
 
 ## When to Use This Skill
 
@@ -28,6 +29,7 @@ Trigger this skill when:
 - Creating a new Android project from scratch
 - Generating Gradle configuration files (`build.gradle.kts`, `settings.gradle.kts`)
 - Setting up Android project structure
+- Adding or planning C/C++ native code (`JNI`, `NDK`, `CMake`, `externalNativeBuild`)
 - User asks to "create an Android app" or "generate an Android project"
 - Debugging Gradle version compatibility issues
 
@@ -82,6 +84,12 @@ Use this decision order:
 2. If user explicitly wants Android 16 / newest APIs and the environment supports it → use `latest`
 3. If JDK is 11-16 → use `legacy`
 4. If the environment is incomplete → stop and surface what is missing before claiming the project is build-ready
+
+Native 触发策略（`native_enabled`）：
+- 默认 `native_enabled = false`
+- 如果提示词命中强信号（如 `JNI`、`NDK`、`CMake`、`externalNativeBuild`、`C++`、`native library`、`原生模块`）→ 自动切到 `native_enabled = true`
+- 如果只命中弱信号（如 `native`、`底层`、`性能优化`）→ 先标记候选并二次确认，再决定是否开启
+- 若用户显式指定（例如 `native_enabled=true/false`），显式配置优先于关键词推断
 
 Additional JDK rules:
 - Prefer a clearly configured `JAVA_HOME` over an accidental `PATH` java

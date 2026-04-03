@@ -11,6 +11,35 @@ import json
 import re
 from pathlib import Path
 
+NATIVE_STRONG_KEYWORDS = (
+    "jni",
+    "ndk",
+    "cmake",
+    "externalnativebuild",
+    "native lib",
+    "native library",
+    "native module",
+    "native code",
+    "c++",
+    "cpp",
+    "c/c++",
+    "so库",
+    ".so",
+    "原生模块",
+    "原生库",
+    "本地库",
+    "native工程",
+)
+
+NATIVE_WEAK_KEYWORDS = (
+    "native",
+    "底层",
+    "性能优化",
+    "高性能",
+    "c语言",
+    "c 语言",
+)
+
 
 def run_command(cmd: list) -> tuple:
     """运行命令并返回 (returncode, stdout, stderr)"""
@@ -26,6 +55,80 @@ def run_command(cmd: list) -> tuple:
         return -1, "", f"Command not found: {cmd[0]}"
     except subprocess.TimeoutExpired:
         return -1, "", f"Command timed out: {cmd[0]}"
+
+
+def detect_native_intent(prompt: str | None) -> dict:
+    """根据提示词判断是否应启用 Native 工程。"""
+    if not prompt or not prompt.strip():
+        return {
+            "native_candidate": False,
+            "native_enabled": False,
+            "needs_confirmation": False,
+            "confidence": "none",
+            "matched_strong_keywords": [],
+            "matched_weak_keywords": [],
+            "reason": "No prompt content provided.",
+        }
+
+    normalized = prompt.lower()
+    strong_hits = sorted({keyword for keyword in NATIVE_STRONG_KEYWORDS if keyword in normalized})
+    weak_hits = sorted({keyword for keyword in NATIVE_WEAK_KEYWORDS if keyword in normalized})
+
+    if strong_hits:
+        return {
+            "native_candidate": True,
+            "native_enabled": True,
+            "needs_confirmation": False,
+            "confidence": "high",
+            "matched_strong_keywords": strong_hits,
+            "matched_weak_keywords": weak_hits,
+            "reason": "Strong native keywords detected in prompt.",
+        }
+
+    if weak_hits:
+        return {
+            "native_candidate": True,
+            "native_enabled": False,
+            "needs_confirmation": True,
+            "confidence": "medium",
+            "matched_strong_keywords": [],
+            "matched_weak_keywords": weak_hits,
+            "reason": "Weak native signals detected; confirm before enabling native template.",
+        }
+
+    return {
+        "native_candidate": False,
+        "native_enabled": False,
+        "needs_confirmation": False,
+        "confidence": "none",
+        "matched_strong_keywords": [],
+        "matched_weak_keywords": [],
+        "reason": "No native-related keywords detected.",
+    }
+
+
+def resolve_native_enabled(prompt: str | None, explicit_native_enabled: bool | None = None) -> dict:
+    """综合提示词与显式开关，输出最终 native_enabled 决策。"""
+    intent = detect_native_intent(prompt)
+
+    if explicit_native_enabled is not None:
+        return {
+            **intent,
+            "native_enabled": bool(explicit_native_enabled),
+            "decision_source": "explicit_flag",
+        }
+
+    if intent["native_enabled"]:
+        source = "strong_keywords"
+    elif intent["needs_confirmation"]:
+        source = "weak_keywords_confirmation_required"
+    else:
+        source = "no_signal"
+
+    return {
+        **intent,
+        "decision_source": source,
+    }
 
 
 def detect_jdk_version() -> dict:
@@ -319,7 +422,7 @@ def assess_environment(
     }
 
 
-def main():
+def main(prompt: str | None = None, native_enabled: bool | None = None):
     """主函数"""
     print("=" * 50)
     print("Android 开发环境检测")
@@ -395,6 +498,21 @@ def main():
     if config.get("warning"):
         print(f"  [!] {config['warning']}")
     print()
+
+    native_decision = resolve_native_enabled(prompt, native_enabled)
+    print("=" * 50)
+    print("Native 工程触发评估")
+    print("=" * 50)
+    print(f"  native_candidate: {native_decision['native_candidate']}")
+    print(f"  native_enabled: {native_decision['native_enabled']}")
+    print(f"  decision_source: {native_decision['decision_source']}")
+    if native_decision.get("matched_strong_keywords"):
+        print(f"  strong hits: {', '.join(native_decision['matched_strong_keywords'])}")
+    if native_decision.get("matched_weak_keywords"):
+        print(f"  weak hits: {', '.join(native_decision['matched_weak_keywords'])}")
+    if native_decision.get("needs_confirmation"):
+        print("  [!] 仅命中弱信号，建议二次确认是否启用 native 模板。")
+    print()
     
     # 输出 JSON 格式（供 AI 解析）
     result = {
@@ -404,6 +522,7 @@ def main():
         "gradle_jdk_context": gradle_jdk_context,
         "android_sdk": sdk_info,
         "ndk": ndk_info,
+        "native_decision": native_decision,
         "recommended_config": config,
         "environment_assessment": assess_environment(
             jdk_info,
@@ -422,4 +541,20 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Android environment and native-intent detector")
+    parser.add_argument("--prompt", default=None, help="User prompt text used for native keyword detection.")
+    parser.add_argument(
+        "--native-enabled",
+        choices=["true", "false"],
+        default=None,
+        help="Explicitly override native_enabled decision.",
+    )
+    args = parser.parse_args()
+
+    explicit_native = None
+    if args.native_enabled is not None:
+        explicit_native = args.native_enabled.lower() == "true"
+
+    main(prompt=args.prompt, native_enabled=explicit_native)

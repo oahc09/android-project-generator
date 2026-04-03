@@ -23,6 +23,8 @@ from detect_env import (
     detect_gradle_jdk_context,
     detect_android_sdk,
     detect_ndk,
+    detect_native_intent,
+    resolve_native_enabled,
     assess_environment,
     recommend_config,
     main
@@ -515,6 +517,32 @@ class TestAssessEnvironment:
         assert result["agp"] == "7.4.2"
 
 
+class TestNativeIntent:
+    """Native 触发判定测试"""
+
+    def test_strong_keywords_enable_native(self):
+        result = detect_native_intent("请创建一个包含 JNI 和 C++ 的 Android native工程")
+
+        assert result["native_candidate"] is True
+        assert result["native_enabled"] is True
+        assert result["needs_confirmation"] is False
+        assert "jni" in result["matched_strong_keywords"]
+
+    def test_weak_keywords_require_confirmation(self):
+        result = detect_native_intent("这个项目要做性能优化，可能涉及底层能力")
+
+        assert result["native_candidate"] is True
+        assert result["native_enabled"] is False
+        assert result["needs_confirmation"] is True
+        assert "性能优化" in result["matched_weak_keywords"]
+
+    def test_explicit_override_has_priority(self):
+        result = resolve_native_enabled("加入 JNI 与 CMake", explicit_native_enabled=False)
+
+        assert result["native_enabled"] is False
+        assert result["decision_source"] == "explicit_flag"
+
+
 # ============================================
 # 测试组：main 函数
 # ============================================
@@ -563,6 +591,7 @@ class TestMain:
         assert "gradle_jdk_context" in result
         assert "android_sdk" in result
         assert "ndk" in result
+        assert "native_decision" in result
         assert "recommended_config" in result
         assert "environment_assessment" in result
         assert isinstance(result, dict)
