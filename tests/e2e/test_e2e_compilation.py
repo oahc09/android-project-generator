@@ -383,23 +383,13 @@ class TestEndToEndCompilation:
         # assert (project_path / "app/build/outputs/apk/debug/app-debug.apk").exists()
     
     @pytest.mark.slow
-    @pytest.mark.skipif(
-        check_jdk_version() is None or check_jdk_version() < 11,
-        reason="Requires JDK 11+ for legacy profile"
-    )
     def test_legacy_profile_compiles(self, temp_project_dir):
         """E2E-002: legacy 配置编译成功"""
-        jdk = check_jdk_version()
-        
-        # 如果 JDK >= 17，跳过（使用 stable 更好）
-        if jdk and jdk >= 17:
-            pytest.skip("JDK 17+ detected, use stable profile instead")
-        
         config = E2ETestConfig(
             project_name="LegacyApp",
             package_name="com.example.legacyapp",
             config_profile="legacy",
-            jdk_version=jdk or 11
+            jdk_version=11
         )
         
         project_path = temp_project_dir / "LegacyApp"
@@ -487,21 +477,13 @@ class TestErrorHandling:
     
     def test_jdk_version_mismatch(self, temp_project_dir):
         """ERR-001: JDK 版本不匹配"""
-        jdk = check_jdk_version()
-        
-        if jdk is None:
-            pytest.skip("JDK not detected")
-        
-        if jdk >= 17:
-            pytest.skip("JDK 17+ detected, cannot test mismatch")
-        
-        # 尝试生成需要 JDK 17 的配置（stable）
-        # 应该给出警告或报错
+        # 构造“环境 JDK 偏低但生成 stable 配置”的固定场景，
+        # 不依赖当前机器真实 JDK，避免用例在不同开发机上跳过。
         config = E2ETestConfig(
             project_name="TestApp",
             package_name="com.example.testapp",
             config_profile="stable",
-            jdk_version=17
+            jdk_version=11
         )
         
         project_path = temp_project_dir / "TestApp"
