@@ -1,10 +1,12 @@
 ---
 name: android-project-generator
 description: Generate Android projects that compile on the first real build, including optional JNI/NDK/CMake native setup. Use when creating new Android apps, configuring Gradle and version compatibility, validating assembleDebug readiness, or adding native modules.
+description_en: Generate Android projects that compile on the first real build, including optional JNI/NDK/CMake native setup. Use when creating new Android apps, configuring Gradle and version compatibility, validating assembleDebug readiness, or adding native modules.
+description_zh: 生成以首次真实构建通过为目标的 Android 工程，并支持可选的 JNI/NDK/CMake Native 集成。当你需要创建新 Android 应用、配置 Gradle 与版本兼容性、验证 assembleDebug 可构建性，或接入 Native 模块时使用此技能。
 license: MIT
 metadata:
   author: oahcfly
-  version: 1.2.0
+  version: 1.3.0
   category: mobile
 ---
 
