@@ -1,12 +1,10 @@
 ---
 name: android-project-generator
-description: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, adding Native modules (JNI/NDK/CMake), or diagnosing why a freshly generated Android project does not build. This skill must be used for Android project scaffolding even if the user only asks to "make an Android app", "set up Gradle", or "add C/C++ native code".
-description_en: Generate Android projects that are intended to compile successfully on the first real build, not just look structurally correct. Use this skill whenever creating a new Android app, generating Gradle files, selecting AGP/Gradle/JDK/Kotlin versions, preparing a repo for `assembleDebug`, adding Native modules (JNI/NDK/CMake), or diagnosing why a freshly generated Android project does not build.
-description_zh: 生成真正以首次构建通过为目标的 Android 工程，而不只是产出看起来完整的项目结构。凡是涉及创建 Android 应用、生成 Gradle 配置、选择 AGP/Gradle/JDK/Kotlin 版本、为 `assembleDebug` 做准备、接入 Native 模块（JNI/NDK/CMake），或排查新生成 Android 工程为何无法构建时，都应使用此技能。即使用户只说“做一个 Android App”“配置 Gradle”或“添加 C/C++ 原生代码”，也应触发此技能。
+description: Generate Android projects that compile on the first real build, including optional JNI/NDK/CMake native setup. Use when creating new Android apps, configuring Gradle and version compatibility, validating assembleDebug readiness, or adding native modules.
 license: MIT
 metadata:
   author: oahcfly
-  version: 1.0.0
+  version: 1.2.0
   category: mobile
 ---
 
@@ -22,6 +20,33 @@ Ensure AI-generated Android projects compile successfully on the first attempt b
 4. **Post-generation validation** — Verify compilation succeeds
 5. **APK build orchestration** — Distinguish between scaffolding-only, build-failed, and compiled APK states
 6. **Native integration guidance** — Detect native intent and scaffold JNI/NDK/CMake-compatible project configuration
+
+## Runtime & Safety Requirements
+
+Before using this skill on a production or sensitive machine, verify:
+
+- Required binaries are present in PATH: `python`, `java`, and at least one of `gradle`/`gradlew`.
+- Android tooling is installed on disk for real build validation: Android SDK (platforms/build-tools/cmdline-tools/licenses), and optional NDK+CMake for native flows.
+- Environment variables are correctly scoped: `JAVA_HOME` (recommended), `ANDROID_HOME` or `ANDROID_SDK_ROOT`, optional `ANDROID_NDK_HOME` or `NDK_HOME` for native workflows.
+- Local command execution is acceptable in the current host policy.
+- Device interactions (`adb install`, `adb shell am start`) are allowed for connected devices/emulators.
+- Build-time network access is acceptable (for Gradle wrapper/dependency resolution).
+
+This skill runs local commands and may perform build/device operations; treat it as operational code, not documentation-only guidance. It does not request API keys, tokens, or cloud credentials by design.
+
+## Credentials
+
+This skill does not require cloud credentials, API keys, or tokens.
+
+It does rely on local environment variables and installed binaries/tooling:
+
+- Env vars inspected/used: `JAVA_HOME`, `ANDROID_HOME`/`ANDROID_SDK_ROOT`, and for native projects `ANDROID_NDK_HOME`/`NDK_HOME`.
+- Binaries/tooling expected: `java`, `gradle`/`gradlew`, Android SDK/NDK on disk, and optional `adb` for install/launch verification.
+
+The scripts do not intentionally exfiltrate data, but they do run subprocesses that may:
+
+- access network resources (for Gradle wrapper/dependency downloads)
+- interact with attached devices/emulators (`adb`)
 
 ## When to Use This Skill
 
