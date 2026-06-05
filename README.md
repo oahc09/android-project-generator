@@ -26,3 +26,23 @@ android-project-generator/
 ├── tests/                      # unit / integration / e2e tests
 └── reports/                    # generated reports (ignored)
 ```
+
+## Features
+
+- AGP / Gradle / JDK / Kotlin compatibility profiles
+- Local environment detection
+- Complete Android project templates
+- Real Gradle Wrapper validation
+- `assembleDebug` build verification
+- APK output confirmation
+- JNI / NDK / CMake native project setup
+- Build-state reporting: scaffolding_only, build_failed, compiled, runnable
+
+## Roadmap
+
+- Expand Android template coverage
+- Add Compose template support
+- Add CI matrix for AGP / Gradle / JDK combinations
+- Add more JNI / NDK / CMake examples
+- Improve China mirror support
+- Add GitHub Action for generated project verification
