@@ -68,8 +68,13 @@ def format_display_path(path: Path) -> str:
         return normalized_path
 
 
-def run_tests():
-    """运行测试"""
+def run_tests(open_report: bool = False):
+    """运行测试并生成 HTML 报告。
+
+    Args:
+        open_report: 仅在显式请求时打开浏览器。默认不打开，避免在
+            非交互环境（CI / agent / 无 stdin）中阻塞或弹出窗口。
+    """
     from generate_report import run_tests_and_generate_report
 
     missing_exit = ensure_pytest_available()
@@ -111,11 +116,12 @@ def run_tests():
         print("=" * 60)
         print(f"[OK] Test report generated: {format_display_path(report_path)}")
         print("=" * 60)
-        
-        # 询问是否打开报告
-        response = input("\n是否打开 HTML 报告？(y/n): ").strip().lower()
-        if response == 'y':
+
+        if open_report:
             webbrowser.open(f'file:///{report_path.absolute()}')
+        else:
+            # 非交互环境下不得阻塞等待输入：默认只提示，不打开浏览器
+            print("[HINT] Report not opened. Use --open-report to open it in a browser.")
     else:
         print()
         print("[WARN] Test report was not generated")
@@ -208,6 +214,11 @@ if __name__ == "__main__":
         action="store_true",
         help="只生成报告（从现有 JSON）"
     )
+    parser.add_argument(
+        "--open-report",
+        action="store_true",
+        help="测试完成后打开 HTML 报告（默认不打开，避免非交互环境阻塞）"
+    )
     
     args = parser.parse_args()
     
@@ -218,4 +229,4 @@ if __name__ == "__main__":
     elif args.report_only:
         sys.exit(generate_report_only())
     else:
-        sys.exit(run_tests())
+        sys.exit(run_tests(open_report=args.open_report))

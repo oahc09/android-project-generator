@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Python startup customization for direct script execution from the scripts/ directory.
+Python startup customization for direct script execution from the tests/ directory.
 
 This file is discovered automatically by Python before normal imports when
-running commands like `python scripts/generate_report.py`.
+running commands like `python tests/generate_report.py`.
 """
 
 import os
